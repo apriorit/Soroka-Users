@@ -7,7 +7,25 @@ import (
 	"github.com/Soroka-EDMS/svc/users/pkgs/models"
 )
 
-func GetUserProfileFromDb(db *models.UsersDb, userID int, userEmail string) (res *models.UserProfile, err error) {
+func CheckAuthInDb(db *models.UsersDb, username, password string) error {
+	db.Mtx.Lock()
+	defer db.Mtx.Unlock()
+	if username == "" || password == "" {
+		return errors.ErrNonAuthorized
+	}
+
+	for _, record := range db.Creds {
+		if record.Username == username && record.Password == password {
+			return nil
+		}
+	}
+
+	return errors.ErrNonAuthorized
+}
+
+func GetUserProfileFromDb(db *models.UsersDb, userID int, userEmail string) (res *models.UserProfileResp, err error) {
+	db.Mtx.Lock()
+	defer db.Mtx.Unlock()
 	if userEmail == "" && userID == 0 {
 		return nil, errors.ErrMalformedRequest
 	} else if userEmail == "" && (userID > 0 && userID < len(db.Profiles)) {
@@ -17,13 +35,13 @@ func GetUserProfileFromDb(db *models.UsersDb, userID int, userEmail string) (res
 	}
 }
 
-func GetById(db *models.UsersDb, userID int) (res *models.UserProfile, err error) {
+func GetById(db *models.UsersDb, userID int) (res *models.UserProfileResp, err error) {
 	profile := db.Profiles[userID]
 	return &profile, nil
 }
 
-func GetByEmail(db *models.UsersDb, userEmail string) (res *models.UserProfile, err error) {
-	var profile models.UserProfile
+func GetByEmail(db *models.UsersDb, userEmail string) (res *models.UserProfileResp, err error) {
+	var profile models.UserProfileResp
 	for _, record := range db.Profiles {
 		if record.Email == userEmail {
 			profile = record
@@ -34,8 +52,11 @@ func GetByEmail(db *models.UsersDb, userEmail string) (res *models.UserProfile, 
 	return nil, errors.ErrProfileNotFound
 }
 
-func GetUserListFromDb(db *models.UsersDb, offset, limit int, sortCriteria, order string) (res *models.UsersListResponse, err error) {
-	var resp models.UsersListResponse
+//GetUserListFromDb returns list with users and pagination parameters according to pagination parameters in request
+func GetUserListFromDb(db *models.UsersDb, offset, limit int, sortCriteria, order string) (res *models.UsersListResp, err error) {
+	db.Mtx.Lock()
+	defer db.Mtx.Unlock()
+	var resp models.UsersListResp
 
 	//If offset is bigger than or equal to amount of record in database, then prepare empty response
 	if offset >= len(db.Profiles) {
@@ -49,7 +70,6 @@ func GetUserListFromDb(db *models.UsersDb, offset, limit int, sortCriteria, orde
 		if f == nil {
 			return nil, errors.ErrInvalidSortParameters
 		}
-
 		sort.Slice(userList, f)
 
 		resp.Users = userList

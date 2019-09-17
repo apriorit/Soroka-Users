@@ -25,13 +25,13 @@ func TestChangeRole_AllUsersExist(t *testing.T) {
 	svc := Build(log.NewNopLogger(), db)
 
 	//Prepare request
-	req := models.ChangeRoleRequest{
+	req := models.ChangeRole{
 		Role: "admin",
 		Ids:  []int{4},
 	}
 
 	//Prepare expected response
-	expectedResponse := models.ChangeUsersResponse{
+	expectedResponse := models.ChangeUsers{
 		Changed:   []int{4},
 		Not_found: make([]int, 0),
 		Message:   constants.ChangedSuccessfully,
@@ -54,13 +54,13 @@ func TestChangeRole_AllUsersDontExist(t *testing.T) {
 	svc := Build(log.NewNopLogger(), db)
 
 	//Prepare request
-	req := models.ChangeRoleRequest{
+	req := models.ChangeRole{
 		Role: "admin",
 		Ids:  []int{11, 25},
 	}
 
 	//Prepare expected response
-	expectedResponse := models.ChangeUsersResponse{
+	expectedResponse := models.ChangeUsers{
 		Changed:   make([]int, 0),
 		Not_found: []int{11, 25},
 		Message:   constants.NoRecordChanged,
@@ -84,13 +84,13 @@ func TestChangeRole_PartiallyExist(t *testing.T) {
 	svc := Build(log.NewNopLogger(), db)
 
 	//Prepare request
-	req := models.ChangeRoleRequest{
+	req := models.ChangeRole{
 		Role: "admin",
 		Ids:  []int{4, 32, 44, 2},
 	}
 
 	//Prepare expected response
-	expectedResponse := models.ChangeUsersResponse{
+	expectedResponse := models.ChangeUsers{
 		Changed:   []int{4, 2},
 		Not_found: []int{32, 44},
 		Message:   constants.ChangedPartialy,
@@ -114,11 +114,11 @@ func TestGetUserProfile_ByEmail(t *testing.T) {
 	//Build service
 	svc := Build(log.NewNopLogger(), db)
 
-	req := models.UserProfileRequest{
+	req := models.UserProfileReq{
 		Email: "lindsay2017@edms.com",
 	}
 
-	expectedResponse := models.UserProfile{
+	expectedResponse := models.UserProfileResp{
 		First_name:    "Doris",
 		Last_name:     "Hooper",
 		Email:         "lindsay2017@edms.com",
@@ -145,12 +145,12 @@ func TestDisableUsers_UserEnabled(t *testing.T) {
 	//Build service
 	svc := Build(log.NewNopLogger(), db)
 
-	req := models.UsersChangeStatusRequest{
+	req := models.UsersChangeStatus{
 		Ids: []int{2},
 	}
 
 	//Prepare expected response
-	expectedResponse := models.ChangeUsersResponse{
+	expectedResponse := models.ChangeUsers{
 		Changed:   []int{2},
 		Not_found: make([]int, 0),
 		Message:   constants.ChangedSuccessfully,
@@ -159,6 +159,7 @@ func TestDisableUsers_UserEnabled(t *testing.T) {
 	resp, err := svc.DisableUsers(context.Background(), req)
 	assert.NoError(t, err)
 	assert.Equal(t, resp, expectedResponse)
+	assert.False(t, db.Db.Profiles[2].Status)
 }
 
 func TestGetUserList_GetAll(t *testing.T) {
@@ -168,9 +169,9 @@ func TestGetUserList_GetAll(t *testing.T) {
 	//Build service
 	svc := Build(log.NewNopLogger(), db)
 
-	req := models.UsersListRequest{
-		Offset: 2,
-		Limit:  5,
+	req := models.UsersList{
+		Offset: 1,
+		Limit:  2,
 		Sort:   "user_name",
 		Order:  "down",
 	}

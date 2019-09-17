@@ -6,11 +6,11 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 
-	"github.com/Soroka-EDMS/svc/users/pkgs/models"
 	m "github.com/Soroka-EDMS/svc/users/pkgs/models"
 )
 
 type UsersEndpoints struct {
+	CheckAuthEndpoint      endpoint.Endpoint
 	ChangeRoleEndpoint     endpoint.Endpoint
 	GetUserListEndpoint    endpoint.Endpoint
 	GetUserProfileEndpoint endpoint.Endpoint
@@ -19,23 +19,24 @@ type UsersEndpoints struct {
 }
 
 //Build creates endpoints with authorization by priveledges
-func Build(logger log.Logger, service models.UsersService) (endpoints UsersEndpoints) {
-	endpoints.ChangeRoleEndpoint = BuildChangeRoleEndpoint(service)
-	endpoints.ChangeRoleEndpoint = JwtAuthorization("changeRole")(endpoints.ChangeRoleEndpoint)
+func Build(logger log.Logger, service m.UsersService) (endpoints UsersEndpoints) {
+	return UsersEndpoints{
+		CheckAuthEndpoint:      BuildCheckAuthEndpoint(service),
+		ChangeRoleEndpoint:     BuildChangeRoleEndpoint(service),
+		GetUserListEndpoint:    BuildGetUserListEndpoint(service),
+		GetUserProfileEndpoint: BuildGetUserProfileEndpoint(service),
+		DisableUsersEndpoint:   BuildDisableUsersEndpoint(service),
+		EnableUsersEndpoint:    BuildEnableUsersEndpoint(service),
+	}
+}
 
-	endpoints.GetUserListEndpoint = BuildGetUserListEndpoint(service)
-	endpoints.GetUserListEndpoint = JwtAuthorization("userList")(endpoints.GetUserListEndpoint)
-
-	endpoints.GetUserProfileEndpoint = BuildGetUserProfileEndpoint(service)
-	endpoints.GetUserProfileEndpoint = JwtAuthorization("userProfile")(endpoints.GetUserProfileEndpoint)
-
-	endpoints.DisableUsersEndpoint = BuildDisableUsersEndpoint(service)
-	endpoints.DisableUsersEndpoint = JwtAuthorization("disableUser")(endpoints.DisableUsersEndpoint)
-
-	endpoints.EnableUsersEndpoint = BuildEnableUsersEndpoint(service)
-	endpoints.EnableUsersEndpoint = JwtAuthorization("enableUser")(endpoints.EnableUsersEndpoint)
-
-	return endpoints
+//BuildChangeRoleEndpoint returns an endpoint that call CheckAuth handler.
+func BuildCheckAuthEndpoint(svc m.UsersService) (ep endpoint.Endpoint) {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(CheckAuthRequest)
+		err := svc.CheckAuth(ctx, req.Req)
+		return CheckAuthResponse{Err: err}, nil
+	}
 }
 
 // BuildChangeRoleEndpoint returns an endpoint that call ChangeRole handler.
@@ -78,47 +79,56 @@ func BuildDisableUsersEndpoint(svc m.UsersService) (ep endpoint.Endpoint) {
 func BuildEnableUsersEndpoint(svc m.UsersService) (ep endpoint.Endpoint) {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(ChangeUserStatusRequest)
-		res, err := svc.DisableUsers(ctx, req.Req)
+		res, err := svc.EnableUsers(ctx, req.Req)
 		return ChangeUserStatusResponse{Res: res, Err: err}, nil
 	}
 }
 
+type CheckAuthRequest struct {
+	Req m.UserCredentials
+}
+
+type CheckAuthResponse struct {
+	Err error
+}
+
 type ChangeRoleRequest struct {
-	Req m.ChangeRoleRequest
+	Req m.ChangeRole
 }
 
 type ChangeRoleResponse struct {
-	Res m.ChangeUsersResponse
+	Res m.ChangeUsers
 	Err error
 }
 
 type UsersListRequest struct {
-	Req m.UsersListRequest
+	Req m.UsersList
 }
 
 type UsersListResponse struct {
-	Res m.UsersListResponse
+	Res m.UsersListResp
 	Err error
 }
 
 type UserProfileRequest struct {
-	Req m.UserProfileRequest
+	Req m.UserProfileReq
 }
 
 type UserProfileResponse struct {
-	Res m.UserProfile
+	Res m.UserProfileResp
 	Err error
 }
 
 type ChangeUserStatusRequest struct {
-	Req m.UsersChangeStatusRequest
+	Req m.UsersChangeStatus
 }
 
 type ChangeUserStatusResponse struct {
-	Res m.ChangeUsersResponse
+	Res m.ChangeUsers
 	Err error
 }
 
+func (r CheckAuthResponse) Error() error        { return r.Err }
 func (r ChangeRoleResponse) Error() error       { return r.Err }
 func (r UsersListResponse) Error() error        { return r.Err }
 func (r UserProfileResponse) Error() error      { return r.Err }

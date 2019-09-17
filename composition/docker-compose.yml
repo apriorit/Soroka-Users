@@ -11,10 +11,10 @@ services:
     build: ./service
     depends_on:
       - users.consul
-    ports:
-      - 8443:443
     networks:
       - app-network
+    ports:
+      - 8443:443
     volumes:
       - ../userssvc:/bin/userssvc
       - ./service/run_service.sh:/bin/run_service.sh

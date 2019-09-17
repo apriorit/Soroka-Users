@@ -24,7 +24,10 @@ func main() {
 	var (
 		address    = flag.String("address", ":443", "")
 		consulAddr = flag.String("consul.address", "localhost:8500", "Consul agent address")
-		conn       = flag.String("consul.db_connection", "stub", "database connection string")
+		conn       = flag.String("consul.usersdb", "usersdb", "database connection string")
+		certKey    = flag.String("consul.tls.pubkey", "tls/pubKey", "tls certificate")
+		privateKey = flag.String("consul.tls.privkey", "tls/privKey", "tls private key")
+		secret     = flag.String("consul.service.secret", "service/secret", "Secret to sign JWT")
 	)
 
 	//Parse CLI parameters
@@ -34,7 +37,14 @@ func main() {
 	logger := config.GetLogger().Logger
 
 	//Log CLI parameters
-	logger.Log("address", *address, *consulAddr, "consul.db_connection", *conn)
+	logger.Log(
+		"address", *address,
+		"consul.address", *consulAddr,
+		"consul.usersdb", *conn,
+		"certKey", *certKey,
+		"privateKey", *privateKey,
+		"secret", *secret,
+	)
 
 	//Obtain consul k/v storage
 	consulStorage, err := createConsulClient(*consulAddr)
@@ -42,13 +52,29 @@ func main() {
 
 	//Obtain db connection string
 	rawConnectionStr, err := ConsulGetKey(consulStorage, *conn)
+	config.LogAndTerminateOnError(err, "obtain database connection string")
 	connectionStr := string(rawConnectionStr)
-	logger.Log("database connection string ", connectionStr)
+
+	//Obtain tls pair (raw)
+	certKeyData, err := ConsulGetKey(consulStorage, *certKey)
+	config.LogAndTerminateOnError(err, "obtain certificate key")
+	privateKeyData, err := ConsulGetKey(consulStorage, *privateKey)
+	config.LogAndTerminateOnError(err, "obtain private key")
+	//Save public key
+	config.SetPublicKey(certKeyData)
+
+	//Get sign secret
+	signSecret, err := ConsulGetKey(consulStorage, *secret)
+	config.LogAndTerminateOnError(err, "obtain secret")
+	config.SetSecretString(string(signSecret))
 
 	//Connect to Users database
 	logger.Log("Loading", "Connecting to users database...")
+	logger.Log("connectionString", connectionStr)
 	db, err := db.Connection(logger, connectionStr)
 	config.LogAndTerminateOnError(err, "connect to users database")
+
+	logger.Log("method", "main", "dbCredsLen", len(db.Db.Creds), "dbRolesLen", len(db.Db.Roles), "dbProfilesLen", len(db.Db.Profiles))
 
 	//Build service layers
 	var handler http.Handler
@@ -62,10 +88,10 @@ func main() {
 	logger.Log("Loading", "Starting Users service...")
 	var g run.Group
 	{
-		cer, err := tls.LoadX509KeyPair("serv.crt", "serv.key")
-		config.LogAndTerminateOnError(err, "loading TLS pair")
+		logger.Log("pub", string(certKeyData), "priv", string(privateKeyData))
+		cert, err := tls.X509KeyPair(certKeyData, privateKeyData)
 
-		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}}
+		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
 		httpsListener, err := tls.Listen("tcp", ":443", tlsConfig)
 		config.LogAndTerminateOnError(err, "create https listener")
 

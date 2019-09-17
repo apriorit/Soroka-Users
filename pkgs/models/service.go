@@ -8,19 +8,15 @@ package models
 
 import (
 	"context"
-	"net/http"
 )
 
-type UsersRequest struct {
-	Url http.Request
-}
-
 type UsersService interface {
-	ChangeRole(cntx context.Context, request ChangeRoleRequest) (res ChangeUsersResponse, err error)
-	GetUserList(cntx context.Context, request UsersListRequest) (res UsersListResponse, err error)
-	GetUserProfile(cntx context.Context, request UserProfileRequest) (res UserProfile, err error)
-	DisableUsers(cntx context.Context, request UsersChangeStatusRequest) (res ChangeUsersResponse, err error)
-	EnableUsers(cntx context.Context, request UsersChangeStatusRequest) (res ChangeUsersResponse, err error)
+	CheckAuth(cntx context.Context, request UserCredentials) (err error)
+	ChangeRole(cntx context.Context, request ChangeRole) (res ChangeUsers, err error)
+	GetUserList(cntx context.Context, request UsersList) (res UsersListResp, err error)
+	GetUserProfile(cntx context.Context, request UserProfileReq) (res UserProfileResp, err error)
+	DisableUsers(cntx context.Context, request UsersChangeStatus) (res ChangeUsers, err error)
+	EnableUsers(cntx context.Context, request UsersChangeStatus) (res ChangeUsers, err error)
 }
 
 type Role struct {
@@ -43,29 +39,29 @@ type PaginationInfo struct {
 	Left   int `json:"left"`
 }
 
-type ChangeRoleRequest struct {
+type ChangeRole struct {
 	Ids  []int  `json:"ids"`
 	Role string `json:"role"`
 }
 
-type UsersListRequest struct {
+type UsersList struct {
 	Offset int    `json:"offset"`
 	Limit  int    `json:"limit"`
 	Sort   string `json:"sort"`
 	Order  string `json:"order"`
 }
 
-type UsersListResponse struct {
+type UsersListResp struct {
 	Users      []UserInfo     `json:"users"`
 	Pagination PaginationInfo `json:"pagination"`
 }
 
-type UserProfileRequest struct {
+type UserProfileReq struct {
 	Id    int    `json:"id"`
 	Email string `json:"email"`
 }
 
-type UserProfile struct {
+type UserProfileResp struct {
 	First_name    string   `json:"first_name"`
 	Last_name     string   `json:"last_name"`
 	Email         string   `json:"email"`
@@ -77,24 +73,21 @@ type UserProfile struct {
 	Role          UserRole `json:"role"`
 }
 
-type UserProfileResponse struct {
-	First_name    string   `json:"first_name"`
-	Last_name     string   `json:"last_name"`
-	Email         string   `json:"email"`
-	Phone         string   `json:"phone"`
-	Location      string   `json:"location"`
-	Position      string   `json:"position"`
-	Status        bool     `json:"status"`
-	Creation_date int64    `json:"creation_date"`
-	Role          UserRole `json:"role"`
-}
-
-type UsersChangeStatusRequest struct {
+type UsersChangeStatus struct {
 	Ids []int `json:"id"`
 }
 
-type ChangeUsersResponse struct {
+type ChangeUsers struct {
 	Changed   []int  `json:"changed"`
 	Not_found []int  `json:"not_found"`
 	Message   string `json:"message"`
+}
+
+type TokensPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type AccessToken struct {
+	AccessToken string `json:"access_token"`
 }

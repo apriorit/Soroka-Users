@@ -17,25 +17,25 @@ func TestPrepareStubDatabase(t *testing.T) {
 	assert.NoError(t, err)
 
 	profileRawAdmin := []byte(stub.AdminProfile)
-	profileAdmin := models.UserProfile{}
+	profileAdmin := models.UserProfileResp{}
 	err = json.Unmarshal(profileRawAdmin, &profileAdmin)
 
 	assert.NoError(t, err)
 
 	profileRawUser := []byte(stub.UserProfile)
-	profileUser := models.UserProfile{}
+	profileUser := models.UserProfileResp{}
 	err = json.Unmarshal(profileRawUser, &profileUser)
 
 	assert.NoError(t, err)
 
 	profileRawOrdinaryUser := []byte(stub.OrdinaryUserProfile)
-	profileOrdinaryUser := models.UserProfile{}
+	profileOrdinaryUser := models.UserProfileResp{}
 	err = json.Unmarshal(profileRawOrdinaryUser, &profileOrdinaryUser)
 
 	assert.NoError(t, err)
 
 	profileRawReducedUser := []byte(stub.ReducedUserProfile)
-	profileReducedUser := models.UserProfile{}
+	profileReducedUser := models.UserProfileResp{}
 	err = json.Unmarshal(profileRawReducedUser, &profileReducedUser)
 
 	assert.NoError(t, err)
@@ -68,4 +68,8 @@ func TestPrepareStubDatabase(t *testing.T) {
 	assert.Equal(t, db.Profiles[2], profileUser)
 	assert.Equal(t, db.Profiles[3], profileOrdinaryUser)
 	assert.Equal(t, db.Profiles[4], profileReducedUser)
+
+	assert.NotEqual(t, len(db.Creds), 0)
+	assert.NotEqual(t, len(db.Profiles), 0)
+	assert.NotEqual(t, len(db.Roles), 0)
 }

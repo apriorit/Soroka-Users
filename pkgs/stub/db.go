@@ -7,22 +7,22 @@ const (
 	}`
 
 	AdminCreds string = `{
-		"username": "admin",
+		"username": "gladys.champl@edms.com",
 		"password": "a@m1n"
 	}`
 
 	UserCreds string = `{
-		"username": "user",
+		"username": "percival1987@edms.com",
 		"password": "@Sr!1"
 	}`
 
 	OrdinaryUserCreds string = `{
-		"username": "ordinaryUser",
+		"username": "lindsay2017@edms.com",
 		"password": "@Sua1pwd"
 	}`
 
 	ReducedUserCreds string = `{
-		"username": "reducedUser",
+		"username": "marianne.cart@edms.com",
 		"password": "Canguro!1"
 	}`
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
+	cfg "github.com/Soroka-EDMS/svc/users/pkgs/config"
 	"github.com/Soroka-EDMS/svc/users/pkgs/constants"
 	"github.com/Soroka-EDMS/svc/users/pkgs/errors"
 	m "github.com/Soroka-EDMS/svc/users/pkgs/models"
@@ -15,14 +16,30 @@ type usersServiceStub struct {
 	Db     m.UsersDatabase
 }
 
-func Build(logger log.Logger, db m.UsersDatabase) m.UsersService {
-	return usersServiceStub{
-		Logger: logger,
+//NewUsersService creates users service stub that enclosing logger and users database
+func NewUsersService(db m.UsersDatabase) m.UsersService {
+	return &usersServiceStub{
+		Logger: cfg.GetLogger().Logger,
 		Db:     db,
 	}
 }
 
-func (uStub usersServiceStub) ChangeRole(cntx context.Context, request m.ChangeRoleRequest) (res m.ChangeUsersResponse, err error) {
+//Build creates session service with middleware
+func Build(logger log.Logger, db m.UsersDatabase) m.UsersService {
+	var svc m.UsersService
+	{
+		svc = NewUsersService(db)
+		svc = LoggingMiddleware(logger)(svc)
+	}
+
+	return svc
+}
+
+func (uStub usersServiceStub) CheckAuth(cntx context.Context, creds m.UserCredentials) (err error) {
+	return uStub.Db.CheckAuth(cntx, creds.Username, creds.Password)
+}
+
+func (uStub usersServiceStub) ChangeRole(cntx context.Context, request m.ChangeRole) (res m.ChangeUsers, err error) {
 	ids := request.Ids
 	role := request.Role
 	changed := 0
@@ -66,22 +83,22 @@ func (uStub usersServiceStub) ChangeRole(cntx context.Context, request m.ChangeR
 	return res, nil
 }
 
-func (uStub usersServiceStub) GetUserList(cntx context.Context, request m.UsersListRequest) (res m.UsersListResponse, err error) {
+func (uStub usersServiceStub) GetUserList(cntx context.Context, request m.UsersList) (res m.UsersListResp, err error) {
 	resp, err := uStub.Db.GetUsersList(cntx, request.Offset, request.Limit, request.Sort, request.Order)
 	return *resp, err
 }
-func (uStub usersServiceStub) GetUserProfile(cntx context.Context, request m.UserProfileRequest) (res m.UserProfile, err error) {
+func (uStub usersServiceStub) GetUserProfile(cntx context.Context, request m.UserProfileReq) (res m.UserProfileResp, err error) {
 	resp, err := uStub.Db.GetUserProfile(cntx, request.Id, request.Email)
 	return *resp, err
 }
-func (uStub usersServiceStub) DisableUsers(cntx context.Context, request m.UsersChangeStatusRequest) (res m.ChangeUsersResponse, err error) {
+func (uStub usersServiceStub) DisableUsers(cntx context.Context, request m.UsersChangeStatus) (res m.ChangeUsers, err error) {
 	return uStub.ChangeStatus(cntx, request, false)
 }
-func (uStub usersServiceStub) EnableUsers(cntx context.Context, request m.UsersChangeStatusRequest) (res m.ChangeUsersResponse, err error) {
+func (uStub usersServiceStub) EnableUsers(cntx context.Context, request m.UsersChangeStatus) (res m.ChangeUsers, err error) {
 	return uStub.ChangeStatus(cntx, request, true)
 }
 
-func (uStub usersServiceStub) ChangeStatus(cntx context.Context, request m.UsersChangeStatusRequest, newStatus bool) (res m.ChangeUsersResponse, err error) {
+func (uStub usersServiceStub) ChangeStatus(cntx context.Context, request m.UsersChangeStatus, newStatus bool) (res m.ChangeUsers, err error) {
 	ids := request.Ids
 	changed := 0
 	notFound := 0

@@ -16,19 +16,19 @@ import (
 //1. Prepare stub database
 //2. Connect to database
 
-//PrepareStubDatabase fills database stub with data
+//PrepareStubDatabase fills database stub with records
 func PrepareStubDatabase(db *m.UsersDb) error {
 	var (
 		err       error
 		userCreds m.UserCredentials
 		role      m.UserRole
-		profile   m.UserProfile
+		profile   m.UserProfileResp
 	)
 	roleMarker := [constants.DbSize]string{"default", "admin", "user", "ordinaryUser", "reducedUser"}
 
 	//Create maps
 	db.Creds = make(map[int]m.UserCredentials)
-	db.Profiles = make(map[int]m.UserProfile)
+	db.Profiles = make(map[int]m.UserProfileResp)
 	db.Roles = make(map[int]m.UserRole)
 
 	//Fill fake database
@@ -46,7 +46,8 @@ func PrepareStubDatabase(db *m.UsersDb) error {
 	return nil
 }
 
-func PrepareDatabaseRecord(marker string, creds *m.UserCredentials, role *m.UserRole, profile *m.UserProfile) (err error) {
+//PrepareDatabaseRecord fills creds, role and profile according to a given marker that can be one of:  default, admin, user, ordinaryUser, reducedUser
+func PrepareDatabaseRecord(marker string, creds *m.UserCredentials, role *m.UserRole, profile *m.UserProfileResp) (err error) {
 
 	switch marker {
 	case "default":
@@ -144,7 +145,7 @@ func PrepareDatabaseRecord(marker string, creds *m.UserCredentials, role *m.User
 	return nil
 }
 
-//
+//Connection returns object that enclosing database after connection to it
 func Connection(logger log.Logger, conn string) (*UserDbConnection, error) {
 	db := m.UsersDb{}
 	if conn == "stub" {
@@ -153,10 +154,15 @@ func Connection(logger log.Logger, conn string) (*UserDbConnection, error) {
 		//Real database
 	}
 
+	logger.Log("method", "Connection", "dbCredsLen", len(db.Creds), "dbRolesLen", len(db.Roles), "dbProfilesLen", len(db.Profiles))
+
 	return &UserDbConnection{Db: &db, Logger: log.With(logger, "pkg", "connection")}, nil
 }
 
+//FindRole checks whether a given role is contained in the database
 func FindRole(db *models.UsersDb, role string) error {
+	db.Mtx.Lock()
+	defer db.Mtx.Unlock()
 	roles := db.Roles
 	for _, r := range roles {
 		if role == r.Name {
@@ -166,8 +172,11 @@ func FindRole(db *models.UsersDb, role string) error {
 	return errors.ErrInvalidRole
 }
 
-func FindMask(roles map[int]m.UserRole, role string) int64 {
-	for _, r := range roles {
+//FindMask returns mask value according to a given role value. Pair of role and mask is unique
+func FindMask(db *models.UsersDb, role string) int64 {
+	db.Mtx.Lock()
+	defer db.Mtx.Unlock()
+	for _, r := range db.Roles {
 		if r.Name == role {
 			return r.Mask
 		}
@@ -176,6 +185,7 @@ func FindMask(roles map[int]m.UserRole, role string) int64 {
 	return 0
 }
 
+//GetSortMethod returns sorting function according to a given sorting criteria
 func GetSortMethod(userList []models.UserInfo, criteria, order string) func(left, right int) bool {
 	switch criteria {
 	case "user_id":
@@ -223,6 +233,7 @@ func GetSortMethod(userList []models.UserInfo, criteria, order string) func(left
 	return nil
 }
 
+//GetAmountOfUsers returns a value that represents possible number of users  that can be returned according to given limit and offset
 func GetAmountOfUsers(offset, limit, dbSize int) (nUsers, left int) {
 	//Check for amount of required users
 	if (limit - offset) <= (dbSize - offset) {
@@ -236,6 +247,7 @@ func GetAmountOfUsers(offset, limit, dbSize int) (nUsers, left int) {
 	return
 }
 
+//GetUserList returns a list with users according to offset and amount of required users
 func GetUserList(offset, nUsers int, db *models.UsersDb) []m.UserInfo {
 	//Prepare user list
 	userList := make([]models.UserInfo, nUsers)
@@ -257,7 +269,8 @@ func GetUserList(offset, nUsers int, db *models.UsersDb) []m.UserInfo {
 	return userList
 }
 
-func PrepareEmptyResponse(resp *models.UsersListResponse) {
+//PrepareEmptyResponse returns empty users list
+func PrepareEmptyResponse(resp *models.UsersListResp) {
 	resp.Users = make([]models.UserInfo, 0)
 	resp.Pagination = models.PaginationInfo{
 		Issued: 0,

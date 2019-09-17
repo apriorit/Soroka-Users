@@ -2,5 +2,5 @@
 
 cd ../
 ./build_service.sh
-cd docker
+cd composition
 ./run_composer.sh up --build

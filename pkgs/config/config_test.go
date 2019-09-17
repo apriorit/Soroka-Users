@@ -25,11 +25,8 @@ func TestGetPriveledgeConfig_UsersPriveledge(t *testing.T) {
 		case "userProfile":
 			existanceMap["userProfile"] = true
 			expectedValue = c.GetProfile
-		case "disableUser":
-			existanceMap["disableUser"] = true
-			expectedValue = c.ChangeUserStatus
-		case "enableUser":
-			existanceMap["enableUser"] = true
+		case "changeUserStatus":
+			existanceMap["changeUserStatus"] = true
 			expectedValue = c.ChangeUserStatus
 		}
 
@@ -47,6 +44,5 @@ func PrepareExistanceMap(exMap map[string]bool) {
 	exMap["changeRole"] = false
 	exMap["userList"] = false
 	exMap["userProfile"] = false
-	exMap["disableUser"] = false
-	exMap["enableUser"] = false
+	exMap["changeUserStatus"] = false
 }
