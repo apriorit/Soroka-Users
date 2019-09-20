@@ -87,7 +87,7 @@ func (uStub usersServiceStub) GetUserList(cntx context.Context, request m.UsersL
 	resp, err := uStub.Db.GetUsersList(cntx, request.Offset, request.Limit, request.Sort, request.Order)
 	return *resp, err
 }
-func (uStub usersServiceStub) GetUserProfile(cntx context.Context, request m.UserProfileReq) (res m.UserProfileResp, err error) {
+func (uStub usersServiceStub) GetUserProfile(cntx context.Context, request m.UserProfileReq) (res m.UserProfile, err error) {
 	resp, err := uStub.Db.GetUserProfile(cntx, request.Id, request.Email)
 	return *resp, err
 }

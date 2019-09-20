@@ -47,9 +47,9 @@ func (lmw loggingMiddleware) GetUserList(ctx context.Context, r m.UsersList) (re
 	return lmw.next.GetUserList(ctx, r)
 }
 
-func (lmw loggingMiddleware) GetUserProfile(ctx context.Context, r m.UserProfileReq) (res m.UserProfileResp, err error) {
+func (lmw loggingMiddleware) GetUserProfile(ctx context.Context, r m.UserProfileReq) (res m.UserProfile, err error) {
 	defer func(begin time.Time) {
-		lmw.logger.Log("method", "GetUserProfile", "id", r.Email, "email", r.Email, "took", time.Since(begin), "err", err)
+		lmw.logger.Log("method", "GetUserProfile", "id", r.Id, "email", r.Email, "took", time.Since(begin), "err", err)
 	}(time.Now())
 	return lmw.next.GetUserProfile(ctx, r)
 }

@@ -2,14 +2,11 @@ package db
 
 import (
 	"encoding/json"
-	_ "encoding/json"
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/Soroka-EDMS/svc/users/pkgs/constants"
 	"github.com/Soroka-EDMS/svc/users/pkgs/errors"
 	"github.com/Soroka-EDMS/svc/users/pkgs/models"
-	m "github.com/Soroka-EDMS/svc/users/pkgs/models"
 	"github.com/Soroka-EDMS/svc/users/pkgs/stub"
 )
 
@@ -17,25 +14,25 @@ import (
 //2. Connect to database
 
 //PrepareStubDatabase fills database stub with records
-func PrepareStubDatabase(db *m.UsersDb) error {
+func PrepareStubDatabase(db *UserDbStub, logger log.Logger) (models.UsersDatabase, error) {
 	var (
 		err       error
-		userCreds m.UserCredentials
-		role      m.UserRole
-		profile   m.UserProfileResp
+		userCreds models.UserCredentials
+		role      models.UserRole
+		profile   models.UserProfile
 	)
-	roleMarker := [constants.DbSize]string{"default", "admin", "user", "ordinaryUser", "reducedUser"}
+	roleMarker := [stub.DbSize]string{"default", "admin", "user", "ordinaryUser", "reducedUser"}
 
 	//Create maps
-	db.Creds = make(map[int]m.UserCredentials)
-	db.Profiles = make(map[int]m.UserProfileResp)
-	db.Roles = make(map[int]m.UserRole)
+	db.Creds = make(map[int]models.UserCredentials)
+	db.Profiles = make(map[int]models.UserProfile)
+	db.Roles = make(map[int]models.UserRole)
 
 	//Fill fake database
 	for count, value := range roleMarker {
 		err = PrepareDatabaseRecord(value, &userCreds, &role, &profile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		db.Creds[count] = userCreds
@@ -43,11 +40,14 @@ func PrepareStubDatabase(db *m.UsersDb) error {
 		db.Profiles[count] = profile
 	}
 
-	return nil
+	//Set db logger
+	db.Logger = logger
+
+	return db, nil
 }
 
 //PrepareDatabaseRecord fills creds, role and profile according to a given marker that can be one of:  default, admin, user, ordinaryUser, reducedUser
-func PrepareDatabaseRecord(marker string, creds *m.UserCredentials, role *m.UserRole, profile *m.UserProfileResp) (err error) {
+func PrepareDatabaseRecord(marker string, creds *models.UserCredentials, role *models.UserRole, profile *models.UserProfile) (err error) {
 
 	switch marker {
 	case "default":
@@ -146,21 +146,25 @@ func PrepareDatabaseRecord(marker string, creds *m.UserCredentials, role *m.User
 }
 
 //Connection returns object that enclosing database after connection to it
-func Connection(logger log.Logger, conn string) (*UserDbConnection, error) {
-	db := m.UsersDb{}
+func Connection(logger log.Logger, conn string) (models.UsersDatabase, error) {
+	var (
+		dbs models.UsersDatabase
+		db  UserDbStub
+		err error
+	)
 	if conn == "stub" {
-		PrepareStubDatabase(&db)
+		dbs, err = PrepareStubDatabase(&db, logger)
 	} else {
 		//Real database
 	}
 
 	logger.Log("method", "Connection", "dbCredsLen", len(db.Creds), "dbRolesLen", len(db.Roles), "dbProfilesLen", len(db.Profiles))
 
-	return &UserDbConnection{Db: &db, Logger: log.With(logger, "pkg", "connection")}, nil
+	return dbs, err
 }
 
 //FindRole checks whether a given role is contained in the database
-func FindRole(db *models.UsersDb, role string) error {
+func (db *UserDbStub) FindRole(role string) error {
 	db.Mtx.Lock()
 	defer db.Mtx.Unlock()
 	roles := db.Roles
@@ -173,7 +177,7 @@ func FindRole(db *models.UsersDb, role string) error {
 }
 
 //FindMask returns mask value according to a given role value. Pair of role and mask is unique
-func FindMask(db *models.UsersDb, role string) int64 {
+func (db *UserDbStub) FindMask(role string) int64 {
 	db.Mtx.Lock()
 	defer db.Mtx.Unlock()
 	for _, r := range db.Roles {
@@ -248,7 +252,7 @@ func GetAmountOfUsers(offset, limit, dbSize int) (nUsers, left int) {
 }
 
 //GetUserList returns a list with users according to offset and amount of required users
-func GetUserList(offset, nUsers int, db *models.UsersDb) []m.UserInfo {
+func (db *UserDbStub) GetUserList(offset, nUsers int) []models.UserInfo {
 	//Prepare user list
 	userList := make([]models.UserInfo, nUsers)
 
@@ -273,7 +277,7 @@ func GetUserList(offset, nUsers int, db *models.UsersDb) []m.UserInfo {
 func PrepareEmptyResponse(resp *models.UsersListResp) {
 	resp.Users = make([]models.UserInfo, 0)
 	resp.Pagination = models.PaginationInfo{
-		Issued: 0,
-		Left:   0,
+		Count: 0,
+		Total: 0,
 	}
 }

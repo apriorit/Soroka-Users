@@ -60,35 +60,28 @@ func main() {
 	config.LogAndTerminateOnError(err, "obtain certificate key")
 	privateKeyData, err := ConsulGetKey(consulStorage, *privateKey)
 	config.LogAndTerminateOnError(err, "obtain private key")
-	//Save public key
-	config.SetPublicKey(certKeyData)
 
 	//Get sign secret
 	signSecret, err := ConsulGetKey(consulStorage, *secret)
 	config.LogAndTerminateOnError(err, "obtain secret")
-	config.SetSecretString(string(signSecret))
 
 	//Connect to Users database
 	logger.Log("Loading", "Connecting to users database...")
-	logger.Log("connectionString", connectionStr)
-	db, err := db.Connection(logger, connectionStr)
+	dbs, err := db.Connection(logger, connectionStr)
 	config.LogAndTerminateOnError(err, "connect to users database")
-
-	logger.Log("method", "main", "dbCredsLen", len(db.Db.Creds), "dbRolesLen", len(db.Db.Roles), "dbProfilesLen", len(db.Db.Profiles))
 
 	//Build service layers
 	var handler http.Handler
 	{
 		logger.Log("Loading", "Creating Users service...")
-		svc := service.Build(logger, db)
-		endpoints := endpoints.Build(logger, svc)
+		svc := service.Build(logger, dbs)
+		endpoints := endpoints.Build(logger, svc, certKeyData, signSecret)
 		handler = handlers.NewHTTPHandler(endpoints)
 	}
 
 	logger.Log("Loading", "Starting Users service...")
 	var g run.Group
 	{
-		logger.Log("pub", string(certKeyData), "priv", string(privateKeyData))
 		cert, err := tls.X509KeyPair(certKeyData, privateKeyData)
 
 		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}

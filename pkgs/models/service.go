@@ -14,7 +14,7 @@ type UsersService interface {
 	CheckAuth(cntx context.Context, request UserCredentials) (err error)
 	ChangeRole(cntx context.Context, request ChangeRole) (res ChangeUsers, err error)
 	GetUserList(cntx context.Context, request UsersList) (res UsersListResp, err error)
-	GetUserProfile(cntx context.Context, request UserProfileReq) (res UserProfileResp, err error)
+	GetUserProfile(cntx context.Context, request UserProfileReq) (res UserProfile, err error)
 	DisableUsers(cntx context.Context, request UsersChangeStatus) (res ChangeUsers, err error)
 	EnableUsers(cntx context.Context, request UsersChangeStatus) (res ChangeUsers, err error)
 }
@@ -35,8 +35,8 @@ type UserInfo struct {
 }
 
 type PaginationInfo struct {
-	Issued int `json:"issued"`
-	Left   int `json:"left"`
+	Count int `json:"issued"`
+	Total int `json:"left"`
 }
 
 type ChangeRole struct {
@@ -61,7 +61,7 @@ type UserProfileReq struct {
 	Email string `json:"email"`
 }
 
-type UserProfileResp struct {
+type UserProfile struct {
 	First_name    string   `json:"first_name"`
 	Last_name     string   `json:"last_name"`
 	Email         string   `json:"email"`

@@ -11,18 +11,20 @@ import (
 	"github.com/Soroka-EDMS/svc/users/pkgs/constants"
 	"github.com/Soroka-EDMS/svc/users/pkgs/db"
 	"github.com/Soroka-EDMS/svc/users/pkgs/models"
+	"github.com/Soroka-EDMS/svc/users/pkgs/stub"
 )
 
 func TestChangeRole_AllUsersExist(t *testing.T) {
 	//GetStub database
-	db, err := db.Connection(log.NewNopLogger(), "stub")
+	dbs, err := db.Connection(log.NewNopLogger(), "stub")
+	dbase := dbs.(*db.UserDbStub)
 	assert.NoError(t, err)
 	//Check for user role before changing
-	assert.Equal(t, db.Db.Profiles[4].Role.Name, constants.RoleName_reducedUser)
-	assert.Equal(t, db.Db.Profiles[4].Role.Mask, constants.RoleMask_reducedUser)
+	assert.Equal(t, dbase.Profiles[4].Role.Name, stub.RoleName_reducedUser)
+	assert.Equal(t, dbase.Profiles[4].Role.Mask, stub.RoleMask_reducedUser)
 
 	//Build service
-	svc := Build(log.NewNopLogger(), db)
+	svc := Build(log.NewNopLogger(), dbase)
 
 	//Prepare request
 	req := models.ChangeRole{
@@ -43,15 +45,16 @@ func TestChangeRole_AllUsersExist(t *testing.T) {
 	assert.Equal(t, expectedResponse, resp)
 
 	//Check for expected value after the user role has been changed
-	assert.Equal(t, db.Db.Profiles[4].Role.Name, constants.RoleName_admin)
-	assert.Equal(t, db.Db.Profiles[4].Role.Mask, constants.RoleMask_admin)
+	assert.Equal(t, dbase.Profiles[4].Role.Name, stub.RoleName_admin)
+	assert.Equal(t, dbase.Profiles[4].Role.Mask, stub.RoleMask_admin)
 }
 
 func TestChangeRole_AllUsersDontExist(t *testing.T) {
-	db, err := db.Connection(log.NewNopLogger(), "stub")
+	dbs, err := db.Connection(log.NewNopLogger(), "stub")
+	dbase := dbs.(*db.UserDbStub)
 	assert.NoError(t, err)
 	//Build service
-	svc := Build(log.NewNopLogger(), db)
+	svc := Build(log.NewNopLogger(), dbase)
 
 	//Prepare request
 	req := models.ChangeRole{
@@ -74,14 +77,15 @@ func TestChangeRole_AllUsersDontExist(t *testing.T) {
 }
 
 func TestChangeRole_PartiallyExist(t *testing.T) {
-	db, err := db.Connection(log.NewNopLogger(), "stub")
+	dbs, err := db.Connection(log.NewNopLogger(), "stub")
+	dbase := dbs.(*db.UserDbStub)
 	assert.NoError(t, err)
-	assert.Equal(t, db.Db.Profiles[2].Role.Name, constants.RoleName_user)
-	assert.Equal(t, db.Db.Profiles[2].Role.Mask, constants.RoleMask_user)
-	assert.Equal(t, db.Db.Profiles[4].Role.Name, constants.RoleName_reducedUser)
-	assert.Equal(t, db.Db.Profiles[4].Role.Mask, constants.RoleMask_reducedUser)
+	assert.Equal(t, dbase.Profiles[2].Role.Name, stub.RoleName_user)
+	assert.Equal(t, dbase.Profiles[2].Role.Mask, stub.RoleMask_user)
+	assert.Equal(t, dbase.Profiles[4].Role.Name, stub.RoleName_reducedUser)
+	assert.Equal(t, dbase.Profiles[4].Role.Mask, stub.RoleMask_reducedUser)
 	//Build service
-	svc := Build(log.NewNopLogger(), db)
+	svc := Build(log.NewNopLogger(), dbase)
 
 	//Prepare request
 	req := models.ChangeRole{
@@ -101,10 +105,10 @@ func TestChangeRole_PartiallyExist(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, expectedResponse, resp)
-	assert.Equal(t, db.Db.Profiles[2].Role.Name, constants.RoleName_admin)
-	assert.Equal(t, db.Db.Profiles[2].Role.Mask, constants.RoleMask_admin)
-	assert.Equal(t, db.Db.Profiles[4].Role.Name, constants.RoleName_admin)
-	assert.Equal(t, db.Db.Profiles[4].Role.Mask, constants.RoleMask_admin)
+	assert.Equal(t, dbase.Profiles[2].Role.Name, stub.RoleName_admin)
+	assert.Equal(t, dbase.Profiles[2].Role.Mask, stub.RoleMask_admin)
+	assert.Equal(t, dbase.Profiles[4].Role.Name, stub.RoleName_admin)
+	assert.Equal(t, dbase.Profiles[4].Role.Mask, stub.RoleMask_admin)
 }
 
 func TestGetUserProfile_ByEmail(t *testing.T) {
@@ -118,7 +122,7 @@ func TestGetUserProfile_ByEmail(t *testing.T) {
 		Email: "lindsay2017@edms.com",
 	}
 
-	expectedResponse := models.UserProfileResp{
+	expectedResponse := models.UserProfile{
 		First_name:    "Doris",
 		Last_name:     "Hooper",
 		Email:         "lindsay2017@edms.com",
@@ -140,10 +144,11 @@ func TestGetUserProfile_ByEmail(t *testing.T) {
 
 func TestDisableUsers_UserEnabled(t *testing.T) {
 	//Connect to stub database
-	db, err := db.Connection(log.NewNopLogger(), "stub")
+	dbs, err := db.Connection(log.NewNopLogger(), "stub")
+	dbase := dbs.(*db.UserDbStub)
 	assert.NoError(t, err)
 	//Build service
-	svc := Build(log.NewNopLogger(), db)
+	svc := Build(log.NewNopLogger(), dbase)
 
 	req := models.UsersChangeStatus{
 		Ids: []int{2},
@@ -159,7 +164,7 @@ func TestDisableUsers_UserEnabled(t *testing.T) {
 	resp, err := svc.DisableUsers(context.Background(), req)
 	assert.NoError(t, err)
 	assert.Equal(t, resp, expectedResponse)
-	assert.False(t, db.Db.Profiles[2].Status)
+	assert.False(t, dbase.Profiles[2].Status)
 }
 
 func TestGetUserList_GetAll(t *testing.T) {

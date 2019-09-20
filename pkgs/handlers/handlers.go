@@ -13,11 +13,8 @@ import (
 
 	"github.com/Soroka-EDMS/svc/users/pkgs/config"
 	"github.com/Soroka-EDMS/svc/users/pkgs/constants"
-	c "github.com/Soroka-EDMS/svc/users/pkgs/constants"
-	ep "github.com/Soroka-EDMS/svc/users/pkgs/endpoints"
-	e "github.com/Soroka-EDMS/svc/users/pkgs/errors"
-	er "github.com/Soroka-EDMS/svc/users/pkgs/errors"
-	"github.com/Soroka-EDMS/svc/users/pkgs/models"
+	"github.com/Soroka-EDMS/svc/users/pkgs/endpoints"
+	"github.com/Soroka-EDMS/svc/users/pkgs/errors"
 	"github.com/go-kit/kit/transport"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -25,7 +22,7 @@ import (
 )
 
 //NewHTTPHandler creates http handler that enclosing all endpoint handlers
-func NewHTTPHandler(endpoints ep.UsersEndpoints) http.Handler {
+func NewHTTPHandler(eps endpoints.IUsersEndpoints) http.Handler {
 	methods := mux.NewRouter()
 
 	options := []httptransport.ServerOption{
@@ -40,242 +37,48 @@ func NewHTTPHandler(endpoints ep.UsersEndpoints) http.Handler {
 	// POST    /users/disable/{id}                 changes user status to disabled
 	// POST    /users/enable/{id}                  changes user status to enabled
 	methods.Methods("GET").Path(constants.AuthEndpoint).Handler(httptransport.NewServer(
-		endpoints.CheckAuthEndpoint,
-		DecodeCheckAuthRequest,
-		encodeCheckAuthResponse,
+		eps.GetEndpoint(endpoints.CheckAuth),
+		eps.DecodeCheckAuthRequest,
+		eps.EncodeCheckAuthResponse,
 		options...,
 	))
 
 	methods.Methods("POST").Path(constants.RoleEndpoint).Handler(httptransport.NewServer(
-		endpoints.ChangeRoleEndpoint,
-		DecodeChangeRoleRequest,
-		encodeChangeRoleResponse,
+		eps.GetEndpoint(endpoints.ChangeRole),
+		eps.DecodeChangeRoleRequest,
+		eps.EncodeChangeRoleResponse,
 		options...,
 	))
 
 	methods.Methods("GET").Path(constants.ListEndpoint).Handler(httptransport.NewServer(
-		endpoints.GetUserListEndpoint,
-		DecodeGetUserListRequest,
-		encodeGetUserListResponse,
+		eps.GetEndpoint(endpoints.GetUserList),
+		eps.DecodeGetUserListRequest,
+		eps.EncodeGetUserListResponse,
 		options...,
 	))
 
 	methods.Methods("GET").Path(constants.GetProfileEndpoint).Handler(httptransport.NewServer(
-		endpoints.GetUserProfileEndpoint,
-		DecodeGetUserProfileRequest,
-		encodeGetUserProfileResponse,
+		eps.GetEndpoint(endpoints.GetUserProfile),
+		eps.DecodeGetUserProfileRequest,
+		eps.EncodeGetUserProfileResponse,
 		options...,
 	))
 
-	methods.Methods("POST").Path(constants.DisableUserEndpoint).Handler(httptransport.NewServer(
-		endpoints.DisableUsersEndpoint,
-		DecodeChangeUsersRequest,
-		encodeChangeUsersResponse,
+	methods.Methods("GET").Path(constants.DisableUserEndpoint).Handler(httptransport.NewServer(
+		eps.GetEndpoint(endpoints.DisableUsers),
+		eps.DecodeChangeUsersRequest,
+		eps.EncodeChangeUsersResponse,
 		options...,
 	))
 
-	methods.Methods("POST").Path(constants.EnableUserEndpoint).Handler(httptransport.NewServer(
-		endpoints.EnableUsersEndpoint,
-		DecodeChangeUsersRequest,
-		encodeChangeUsersResponse,
+	methods.Methods("GET").Path(constants.EnableUserEndpoint).Handler(httptransport.NewServer(
+		eps.GetEndpoint(endpoints.EnableUsers),
+		eps.DecodeChangeUsersRequest,
+		eps.EncodeChangeUsersResponse,
 		options...,
 	))
 
 	return methods
-}
-
-//DecodeCheckAuthRequest decodes raw request to corresponding service model
-func DecodeCheckAuthRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var (
-		req models.UserCredentials
-		ok  bool
-	)
-
-	if req.Username, req.Password, ok = r.BasicAuth(); !ok {
-		return nil, er.ErrBearerSchemaRequired
-	}
-
-	return ep.CheckAuthRequest{Req: req}, nil
-}
-
-//DecodeChangeRoleRequest decodes raw request to corresponding service model
-func DecodeChangeRoleRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var (
-		req models.ChangeRole
-		err error
-	)
-
-	if err = CheckAuthorization(r, "changeRole"); err != nil {
-		return nil, err
-	}
-
-	//Parse request body
-	if r.Body == nil {
-		config.GetLogger().Logger.Log("1", "1")
-		return nil, er.ErrMissingBodyContent
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		config.GetLogger().Logger.Log("2", "2")
-		return nil, err
-	}
-	if req.Role == "" {
-		config.GetLogger().Logger.Log("3", "3")
-		return nil, er.ErrMalformedBodyContent
-	}
-
-	//Parse request path
-	ids, err := GetIds(r.URL.Path)
-	if err != nil {
-		config.GetLogger().Logger.Log("4", "4")
-		return nil, err
-	}
-
-	req.Ids = ids
-
-	return ep.ChangeRoleRequest{Req: req}, nil
-}
-
-//DecodeGetUserListRequest decodes raw request to corresponding service model
-func DecodeGetUserListRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var (
-		req models.UsersList
-		err error
-	)
-
-	if err = CheckAuthorization(r, "userList"); err != nil {
-		return nil, err
-	}
-	//Parse request query
-	queryPart := r.URL.RawQuery
-	if err = qson.Unmarshal(&req, queryPart); err != nil {
-		return nil, err
-	}
-
-	return ep.UsersListRequest{Req: req}, nil
-}
-
-//DecodeGetUserProfileRequest decodes raw request to corresponding service model
-func DecodeGetUserProfileRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var (
-		req models.UserProfileReq
-		err error
-	)
-
-	config.GetLogger().Logger.Log("method", "DecodeGetUserProfileRequest", "URI", r.RequestURI)
-
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		return nil, e.ErrMissingAuthorizationHeader
-	}
-
-	config.GetLogger().Logger.Log("method", "DecodeGetUserProfileRequest", "secret", authHeader[len(c.BearerSchema):])
-	if authHeader[len(c.BearerSchema):] != config.GetSecretString() {
-		if err = CheckAuthorization(r, "userProfile"); err != nil {
-			return nil, err
-		}
-	}
-
-	//Parse request query
-	queryPart := r.URL.RawQuery
-	if err := qson.Unmarshal(&req, queryPart); err != nil {
-		return nil, err
-	}
-
-	return ep.UserProfileRequest{Req: req}, nil
-}
-
-//DecodeChangeUsersRequest decodes raw request to corresponding service model
-func DecodeChangeUsersRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var (
-		req models.UsersChangeStatus
-		err error
-	)
-
-	if err = CheckAuthorization(r, "changeUserStatus"); err != nil {
-		return nil, err
-	}
-	//Parse request path
-	ids, err := GetIds(r.URL.Path)
-	if err != nil {
-		return nil, err
-	}
-	req.Ids = ids
-
-	return ep.ChangeUserStatusRequest{Req: req}, nil
-}
-
-func encodeCheckAuthResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	e, ok := response.(ep.CheckAuthResponse)
-	if !ok {
-		return er.ErrEncodingResponse
-	}
-
-	if err := e.Error(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func encodeChangeRoleResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	e, ok := response.(ep.ChangeRoleResponse)
-	if !ok {
-		return er.ErrEncodingResponse
-	}
-
-	err := e.Error()
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(e.Res)
-}
-
-func encodeGetUserListResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	e, ok := response.(ep.UsersListResponse)
-	if !ok {
-		return er.ErrEncodingResponse
-	}
-
-	err := e.Error()
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(e.Res)
-}
-
-func encodeGetUserProfileResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	e, ok := response.(ep.UserProfileResponse)
-	if !ok {
-		return er.ErrEncodingResponse
-	}
-
-	err := e.Error()
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(e.Res)
-}
-
-func encodeChangeUsersResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	e, ok := response.(ep.ChangeUserStatusResponse)
-	if !ok {
-		return er.ErrEncodingResponse
-	}
-
-	err := e.Error()
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(e.Res)
 }
 
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
@@ -294,23 +97,23 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 
 func codeFrom(err error) (int, string) {
 	switch err {
-	case er.ErrMissingBody, er.ErrMissingPath:
-		return http.StatusBadRequest, c.Required
-	case er.ErrMalformedBodyContent, er.ErrMalformedPath:
-		return http.StatusBadRequest, c.Invalid
-	case er.ErrMissingAuthorizationHeader:
-		return http.StatusUnauthorized, c.MissingAuthorizationHeader
-	case er.ErrBearerSchemaRequired:
-		return http.StatusUnauthorized, c.BearerSchemaRequired
-	case er.ErrBearerSchemaRequired:
-		return http.StatusUnauthorized, c.BasicSchemaRequired
-	case er.ErrMissingPayload, er.ErrInvalidAuthorization:
-		return http.StatusUnauthorized, c.InvalidAuthorization
+	case errors.ErrMissingBody, errors.ErrMissingPath:
+		return http.StatusBadRequest, constants.Required
+	case errors.ErrMalformedBodyContent, errors.ErrMalformedPath:
+		return http.StatusBadRequest, constants.Invalid
+	case errors.ErrMissingAuthorizationHeader:
+		return http.StatusUnauthorized, constants.MissingAuthorizationHeader
+	case errors.ErrBearerSchemaRequired:
+		return http.StatusUnauthorized, constants.BearerSchemaRequired
+	case errors.ErrBearerSchemaRequired:
+		return http.StatusUnauthorized, constants.BasicSchemaRequired
+	case errors.ErrMissingPayload, errors.ErrInvalidAuthorization:
+		return http.StatusUnauthorized, constants.InvalidAuthorization
 	case qson.ErrInvalidParam:
 		return http.StatusBadRequest, err.Error()
-	case er.ErrEncodingResponse:
+	case errors.ErrEncodingResponse:
 		return http.StatusInternalServerError, err.Error()
-	case er.ErrInvalidClaims:
+	case errors.ErrInvalidClaims:
 		return http.StatusUnauthorized, err.Error()
 	default:
 		return http.StatusInternalServerError, err.Error()

@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	c "github.com/Soroka-EDMS/svc/users/pkgs/constants"
+	"github.com/Soroka-EDMS/svc/users/pkgs/stub"
 )
 
 //Test for correct configuration of priveldge map for Users service
@@ -11,23 +11,23 @@ func TestGetPriveledgeConfig_UsersPriveledge(t *testing.T) {
 	//Prepare existance map, priveledge map
 	existanceMap := make(map[string]bool)
 	PrepareExistanceMap(existanceMap)
-	privMap := GetPriveledges().Priveledges
+	privMap := GetPrivileges().Privileges
 
 	var expectedValue int
 	for key, value := range privMap {
 		switch key {
 		case "changeRole":
 			existanceMap["changeRole"] = true
-			expectedValue = c.ChangeRole
+			expectedValue = stub.ChangeRole
 		case "userList":
 			existanceMap["userList"] = true
-			expectedValue = c.QueryUsers
+			expectedValue = stub.QueryUsers
 		case "userProfile":
 			existanceMap["userProfile"] = true
-			expectedValue = c.GetProfile
+			expectedValue = stub.GetProfile
 		case "changeUserStatus":
 			existanceMap["changeUserStatus"] = true
-			expectedValue = c.ChangeUserStatus
+			expectedValue = stub.ChangeUserStatus
 		}
 
 		if value != expectedValue {
@@ -35,8 +35,8 @@ func TestGetPriveledgeConfig_UsersPriveledge(t *testing.T) {
 		}
 	}
 
-	if len(existanceMap) != c.NumOfPriveledges {
-		t.Errorf("Amount of proveledges: %d, expected amount: %d", len(existanceMap), c.NumOfPriveledges)
+	if len(existanceMap) != stub.AmountOfPriveledges {
+		t.Errorf("Amount of proveledges: %d, expected amount: %d", len(existanceMap), stub.AmountOfPriveledges)
 	}
 }
 

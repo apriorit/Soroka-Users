@@ -2,39 +2,43 @@ package db
 
 import (
 	"context"
+	"sync"
 
 	"github.com/go-kit/kit/log"
 
 	"github.com/Soroka-EDMS/svc/users/pkgs/models"
 )
 
-type UserDbConnection struct {
-	Db     *models.UsersDb
-	Logger log.Logger
+type UserDbStub struct {
+	Creds    map[int]models.UserCredentials
+	Roles    map[int]models.UserRole
+	Profiles map[int]models.UserProfile
+	Mtx      sync.RWMutex
+	Logger   log.Logger
 }
 
 //CheckAuth calls CheckAuthInDb described in getters.go
-func (db *UserDbConnection) CheckAuth(ctx context.Context, username, password string) error {
-	db.Logger.Log("method", "main", "dbCredsLen", len(db.Db.Creds), "dbRolesLen", len(db.Db.Roles), "dbProfilesLen", len(db.Db.Profiles))
-	return CheckAuthInDb(db.Db, username, password)
+func (db *UserDbStub) CheckAuth(ctx context.Context, username, password string) error {
+	db.Logger.Log("method", "main", "dbCredsLen", len(db.Creds), "dbRolesLen", len(db.Roles), "dbProfilesLen", len(db.Profiles))
+	return db.CheckAuthInDb(username, password)
 }
 
 //ChangeRole calls ChangeRoleInDb described in posters.go
-func (db *UserDbConnection) ChangeRole(ctx context.Context, userID int, role string) error {
-	return ChangeRoleInDb(db.Db, userID, role)
+func (db *UserDbStub) ChangeRole(ctx context.Context, userID int, role string) error {
+	return db.ChangeRoleInDb(userID, role)
 }
 
 //GetUserProfile calls GetUserProfileFromDb described in getters.go
-func (db *UserDbConnection) GetUserProfile(ctx context.Context, userID int, userEmail string) (res *models.UserProfileResp, err error) {
-	return GetUserProfileFromDb(db.Db, userID, userEmail)
+func (db *UserDbStub) GetUserProfile(ctx context.Context, userID int, userEmail string) (res *models.UserProfile, err error) {
+	return db.GetUserProfileFromDb(userID, userEmail)
 }
 
 //GetUsersList calls GetUserListFromDb described in getters.go
-func (db *UserDbConnection) GetUsersList(ctx context.Context, offset, limit int, sort, order string) (res *models.UsersListResp, err error) {
-	return GetUserListFromDb(db.Db, offset, limit, sort, order)
+func (db *UserDbStub) GetUsersList(ctx context.Context, offset, limit int, sort, order string) (res *models.UsersListResp, err error) {
+	return db.GetUserListFromDb(offset, limit, sort, order)
 }
 
 //ChangeUserStatus calls ChangeUserStatusInDb described in posters.go
-func (db *UserDbConnection) ChangeUserStatus(ctx context.Context, userID int, status bool) error {
-	return ChangeUserStatusInDb(db.Db, userID, status)
+func (db *UserDbStub) ChangeUserStatus(ctx context.Context, userID int, status bool) error {
+	return db.ChangeUserStatusInDb(userID, status)
 }
