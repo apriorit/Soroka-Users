@@ -1,0 +1,27 @@
+version: '3'
+
+services:
+  users.consul:
+    build: ./consul
+    ports: 
+      - 48500:8500
+    networks:
+      - app-network
+  users.service:
+    build: ./service
+    depends_on:
+      - users.consul
+    networks:
+      - app-network
+    ports:
+      - 8443:443
+    volumes:
+      - ../userssvc:/bin/userssvc
+      - ./service/run_service.sh:/bin/run_service.sh
+      - ./service/serv.crt:/serv.crt
+      - ./service/serv.key:/serv.key
+
+networks:
+  app-network:
+    external:
+      name: local-docker-dev-network
